@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo RPG</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #333;
+        }
+
+        #mapa {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background: #222;
+            border: 5px solid #555;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: blue;
+            border-radius: 50%;
+            top: 200px;
+            left: 100px;
+        }
+
+        .enemy {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: red;
+            border-radius: 50%;
+        }
+
+        .raio {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: yellow;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .bullet {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: orange;
+            border-radius: 50%;
+        }
+
+        #npc {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: green;
+            border-radius: 50%;
+            top: 50px;
+            left: 50px;
+            cursor: pointer;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="mapa">
+        <div id="player"></div>
+        <!-- NPC que recria os inimigos ao ser clicado -->
+        <div id="npc" onclick="recriarInimigos()"></div>
+        <!-- HUD para mostrar vida e nível -->
+        <div id="hud">Vida: <span id="vida">100</span> | Nível: <span id="nivel">1</span> | XP: <span id="xp">0</span></div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const mapa = document.getElementById('mapa');
+        const vidaDisplay = document.getElementById('vida');
+        const nivelDisplay = document.getElementById('nivel');
+        const xpDisplay = document.getElementById('xp');
+
+        let playerPos = { x: 100, y: 200 };
+        let playerVida = 100;
+        let playerNivel = 1;
+        let playerXP = 0;
+        let xpParaProximoNivel = 100;
+        let dashCooldown = false;
+        let raioAtivo = false;
+        let enemies = [];
+
+        function criarInimigos() {
+            const enemyPositions = [
+                { top: 50, left: 600 },
+                { top: 100, left: 300 },
+                { top: 150, left: 500 },
+                { top: 200, left: 700 },
+                { top: 250, left: 400 },
+                { top: 300, left: 600 },
+                { top: 350, left: 200 },
+                { top: 400, left: 500 },
+                { top: 450, left: 100 },
+                { top: 400, left: 300 }
+            ];
+
+            enemyPositions.forEach(pos => {
+                const enemy = document.createElement('div');
+                enemy.classList.add('enemy');
+                enemy.style.top = `${pos.top}px`;
+                enemy.style.left = `${pos.left}px`;
+                mapa.appendChild(enemy);
+                enemies.push(enemy);
+            });
+        }
+
+        function recriarInimigos() {
+            enemies.forEach(enemy => enemy.remove());
+            enemies = [];
+            criarInimigos();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const step = 10;
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    if (playerPos.y > 0) playerPos.y -= step;
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (playerPos.y < 460) playerPos.y += step;
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (playerPos.x > 0) playerPos.x -= step;
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (playerPos.x < 760) playerPos.x += step;
+                    break;
+                case 'z':
+                case 'Z':
+                    if (!raioAtivo) {
+                        soltarRaio();
+                    }
+                    break;
+                case 'q':
+                case 'Q':
+                    if (!dashCooldown) {
+                        dash();
+                    }
+                    break;
+            }
+            moverPlayer();
+        });
+
+        function moverPlayer() {
+            player.style.top = `${playerPos.y}px`;
+            player.style.left = `${playerPos.x}px`;
+        }
+
+        mapa.addEventListener('click', (e) => {
+            atirar(e.clientX, e.clientY);
+        });
+
+        function atirar(mouseX, mouseY) {
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            bullet.style.top = `${playerPos.y + 15}px`;
+            bullet.style.left = `${playerPos.x + 15}px`;
+            mapa.appendChild(bullet);
+
+            const angle = Math.atan2(mouseY - (playerPos.y + 20), mouseX - (playerPos.x + 20));
+            const speed = 5;
+
+            const movimentoBala = setInterval(() => {
+                const bulletPos = {
+                    x: parseInt(bullet.style.left),
+                    y: parseInt(bullet.style.top)
+                };
+
+                bulletPos.x += Math.cos(angle) * speed;
+                bulletPos.y += Math.sin(angle) * speed;
+                bullet.style.left = `${bulletPos.x}px`;
+                bullet.style.top = `${bulletPos.y}px`;
+
+                enemies.forEach((enemy, index) => {
+                    if (colide(bullet, enemy)) {
+                        enemy.remove();
+                        enemies.splice(index, 1);
+                        clearInterval(movimentoBala);
+                        bullet.remove();
+                        ganharXP(20); // Ganha XP ao derrotar inimigo
+                    }
+                });
+
+                if (bulletPos.x < 0 || bulletPos.x > 800 || bulletPos.y < 0 || bulletPos.y > 500) {
+                    clearInterval(movimentoBala);
+                    bullet.remove();
+                }
+            }, 20);
+        }
+
+        function soltarRaio() {
+            raioAtivo = true;
+            raio.style.top = `${playerPos.y + 15}px`;
+            raio.style.left = `${playerPos.x + 15}px`;
+            raio.style.display = 'block';
+
+            let posRaio = playerPos.x + 20;
+
+            const movimentoRaio = setInterval(() => {
+                posRaio += 20;
+                raio.style.left = `${posRaio}px`;
+
+                enemies.forEach((enemy, index) => {
+                    if (colide(raio, enemy)) {
+                        enemy.remove();
+                        enemies.splice(index, 1);
+                        ganharXP(10); // Ganha XP ao derrotar inimigo
+                    }
+                });
+
+                if (posRaio > 800) {
+                    clearInterval(movimentoRaio);
+                    raio.style.display = 'none';
+                    raioAtivo = false;
+                }
+            }, 50);
+        }
+
+        function dash() {
+            dashCooldown = true;
+            const dashDistance = 50;
+            playerPos.x += dashDistance * (playerPos.x < 760 ? 1 : -1); // Dash para a direita ou esquerda se no limite
+            moverPlayer();
+
+            setTimeout(() => {
+                dashCooldown = false;
+            }, 1000); // Cooldown de 1 segundo
+        }
+
+        function ganharXP(xp) {
+            playerXP += xp;
+            xpDisplay.textContent = playerXP;
+            if (playerXP >= xpParaProximoNivel) {
+                subirDeNivel();
+            }
+        }
+
+        function subirDeNivel() {
+            playerXP = 0;
+            playerNivel++;
+            xpParaProximoNivel += 50; // Aumenta o XP necessário para o próximo nível
+            playerVida += 20; // Aumenta a vida ao subir de nível
+            atualizarHUD();
+        }
+
+        function atualizarHUD() {
+            vidaDisplay.textContent = playerVida;
+            nivelDisplay.textContent = playerNivel;
+            xpDisplay.textContent = playerXP;
+        }
+
+        function colide(el1, el2) {
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            return !(
+                rect1.top > rect2.bottom ||
+                rect1.bottom < rect2.top ||
+                rect1.left > rect2.right ||
+                rect1.right < rect2.left
+            );
+        }
+
+        function moverInimigos() {
+            enemies.forEach((enemy, index) => {
+                const enemyPos = {
+                    x: parseInt(enemy.style.left),
+                    y: parseInt(enemy.style.top)
+                };
+
+                if (enemyPos.x < playerPos.x) {
+                    enemyPos.x += 1;
+                } else if (enemyPos.x > playerPos.x) {
+                    enemyPos.x -= 1;
+                }
+
+                if (enemyPos.y < playerPos.y) {
+                    enemyPos.y += 1;
+                } else if (enemyPos.y > playerPos.y) {
+                    enemyPos.y -= 1;
+                }
+
+                enemy.style.left = `${enemyPos.x}px`;
+                enemy.style.top = `${enemyPos.y}px`;
+
+                if (colide(enemy, player)) {
+                    playerVida -= 10;
+                    atualizarHUD();
+                    if (playerVida <= 0) {
+                        alert('Você foi derrotado!');
+                        resetarJogo();
+                    }
+                }
+            });
+        }
+
+        function resetarJogo() {
+            playerPos = { x: 100, y: 200 };
+            playerVida = 100;
+            playerNivel = 1;
+            playerXP = 0;
+            xpParaProximoNivel = 100;
+            moverPlayer();
+            atualizarHUD();
+            recriarInimigos();
+        }
+
+        setInterval(moverInimigos, 50);
+        criarInimigos();
+        atualizarHUD();
+    </script>
+</body>
+</html>
