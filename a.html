@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Simples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #282c34;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        #game-container {
+            padding: 20px;
+        }
+        #status {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #61dafb;
+            color: #282c34;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        button:disabled {
+            background-color: #ddd;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <h1>RPG Simples</h1>
+        <div id="status">
+            <p id="player-status">Jogador: HP 100</p>
+            <p id="monster-status">Monstro: HP 100</p>
+        </div>
+        <button id="attack-btn">Atacar</button>
+        <button id="heal-btn">Curar</button>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        let playerHP = 100;
+        let monsterHP = 100;
+
+        const attackBtn = document.getElementById("attack-btn");
+        const healBtn = document.getElementById("heal-btn");
+        const playerStatus = document.getElementById("player-status");
+        const monsterStatus = document.getElementById("monster-status");
+        const message = document.getElementById("message");
+
+        function updateStatus() {
+            playerStatus.textContent = `Jogador: HP ${playerHP}`;
+            monsterStatus.textContent = `Monstro: HP ${monsterHP}`;
+        }
+
+        function checkGameOver() {
+            if (playerHP <= 0) {
+                message.textContent = "Você perdeu!";
+                attackBtn.disabled = true;
+                healBtn.disabled = true;
+            } else if (monsterHP <= 0) {
+                message.textContent = "Você venceu!";
+                attackBtn.disabled = true;
+                healBtn.disabled = true;
+            }
+        }
+
+        attackBtn.addEventListener("click", () => {
+            const playerAttack = Math.floor(Math.random() * 20) + 5;
+            const monsterAttack = Math.floor(Math.random() * 15) + 5;
+
+            monsterHP -= playerAttack;
+            playerHP -= monsterAttack;
+
+            message.textContent = `Você atacou o monstro causando ${playerAttack} de dano. O monstro revidou causando ${monsterAttack} de dano.`;
+
+            updateStatus();
+            checkGameOver();
+        });
+
+        healBtn.addEventListener("click", () => {
+            const heal = Math.floor(Math.random() * 20) + 10;
+            playerHP += heal;
+            const monsterAttack = Math.floor(Math.random() * 15) + 5;
+
+            playerHP -= monsterAttack;
+
+            message.textContent = `Você se curou em ${heal} pontos de vida. O monstro atacou causando ${monsterAttack} de dano.`;
+
+            updateStatus();
+            checkGameOver();
+        });
+
+        updateStatus();
+    </script>
+
+</body>
+</html>
